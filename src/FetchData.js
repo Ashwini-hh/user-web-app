@@ -1,29 +1,29 @@
 import React, { useEffect, useState } from "react";
+import axios from "axios";
 import "./App.css";
 
 function FetchData() {
   const [data, setData] = useState([]);
+  const [data2, setData2] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // Number of items to display per page
   const [activeTab, setActiveTab] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [searchThrottleTimeout, setSearchThrottleTimeout] = useState(null);
 
   useEffect(() => {
     // Define the API URL you want to fetch data from
     const apiUrl = "https://api.github.com/users";
 
-    // Fetch data from the API
-    fetch(apiUrl)
-      .then((response) => response.json())
-      .then((data) => {
+    // Use Axios to make the GET request
+    axios
+      .get(apiUrl)
+      .then((response) => {
         // Initialize the bookmarked property for each user
-        const usersWithBookmarked = data.map((user) => ({
+        const usersWithBookmarked = response.data.map((user) => ({
           ...user,
           bookmarked: false,
         }));
+        setData2(usersWithBookmarked);
         setData(usersWithBookmarked);
         setLoading(false);
       })
@@ -34,67 +34,20 @@ function FetchData() {
       });
   }, []);
 
-  useEffect(() => {
-    const savedBookmarkedUserIds =
-      JSON.parse(localStorage.getItem("bookmarkedUserIds")) || [];
-    // Fetch data from the API and initialize the bookmarked property
-    fetch("https://api.github.com/users")
-      .then((response) => response.json())
-      .then((data) => {
-        const usersWithBookmarked = data.map((user) => ({
-          ...user,
-          bookmarked: savedBookmarkedUserIds.includes(user.id),
-        }));
-        setData(usersWithBookmarked);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching data:", error);
-        setLoading(false);
-      });
-  }, []);
-
-  // Save bookmarked user IDs to localStorage whenever data changes
-  useEffect(() => {
-    const bookmarkedUserIds = data
-      .filter((user) => user.bookmarked)
-      .map((user) => user.id);
-    localStorage.setItem("bookmarkedUserIds", JSON.stringify(bookmarkedUserIds));
-  }, [data]);
-
-  useEffect(() => {
-    // Throttle the search query updates to avoid frequent processing
-    if (searchQuery !== debouncedSearchQuery) {
-      if (searchThrottleTimeout) {
-        clearTimeout(searchThrottleTimeout);
-      }
-      const timeout = setTimeout(() => {
-        setDebouncedSearchQuery(searchQuery);
-      }, 300); // Throttle time: 300 milliseconds
-      setSearchThrottleTimeout(timeout);
-    }
-  }, [searchQuery, debouncedSearchQuery, searchThrottleTimeout]);
-
-  const handleSearchInputChange = (event) => {
-    const { value } = event.target;
-    setSearchQuery(value);
+  const handlePullToRefresh = () => {
+    // Reload the page to simulate a refresh
+    window.location.reload();
+    console.log("Hello");
   };
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  // Filter users based on the debounced search query or show all users if no query
-  const filteredUsers = debouncedSearchQuery
-    ? data.filter((user) =>
-        user.login.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-      )
-    : data;
-
   // Calculate the indexes of items to display for the current page
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = data.slice(indexOfFirstItem, indexOfLastItem);
 
   const toggleBookmark = (userId) => {
     setData((prevData) =>
@@ -102,10 +55,15 @@ function FetchData() {
         user.id === userId ? { ...user, bookmarked: !user.bookmarked } : user
       )
     );
+    setData2((prevData) =>
+      prevData.map((user) =>
+        user.id === userId ? { ...user, bookmarked: !user.bookmarked } : user
+      )
+    );
   };
 
   const BookmarkedUsers = () => {
-    const bookmarkedUsers = filteredUsers.filter((user) => user.bookmarked);
+    const bookmarkedUsers = data.filter((user) => user.bookmarked);
 
     return (
       <div className="container">
@@ -117,6 +75,7 @@ function FetchData() {
                 <th>ID</th>
                 <th>Login name</th>
                 <th>Avatar</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -147,9 +106,21 @@ function FetchData() {
     );
   };
 
+  const handleChange = (e) => {
+    // setSearchField(e.target.value);
+    const filteredPersons = data2.filter((person) => {
+      return person.login.toLowerCase().includes(e.target.value.toLowerCase());
+    });
+    setData(filteredPersons);
+  };
+
   return (
-    <div className="container">
-      <h3>Fetch Data from API in React</h3>
+    <div
+      className="container"
+      // onPointerDown={handlePullToRefresh}
+      // onTouchStart={handlePullToRefresh}
+    >
+      <h3>Users List</h3>
 
       <div className="tabs">
         <button onClick={() => setActiveTab("all")}>All Users</button>
@@ -157,16 +128,12 @@ function FetchData() {
           Bookmarked Users
         </button>
       </div>
-
-      <div className="search-container">
-        <input
-          type="text"
-          placeholder="Search by name"
-          value={searchQuery}
-          onChange={handleSearchInputChange}
-        />
-      </div>
-
+      <input
+        className="search-container"
+        type="search"
+        placeholder="Search People"
+        onChange={handleChange}
+      />
       <div className="mt-3">
         {activeTab === "all" && (
           <>
@@ -202,10 +169,9 @@ function FetchData() {
                 })}
               </tbody>
             </table>
-
             {/* Pagination */}
             <ul className="pagination">
-              {Array(Math.ceil(filteredUsers.length / itemsPerPage))
+              {Array(Math.ceil(data.length / itemsPerPage))
                 .fill()
                 .map((_, index) => (
                   <li

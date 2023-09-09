@@ -73,10 +73,14 @@ h3 {
 button {
   padding: 8px 16px;
   margin-right: 10px;
-  background-color: #007bff;
+  background-color: #d7dee6;
   color: #fff;
   border: none;
   cursor: pointer;
+  border-radius: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 10px;
 }
 
 button:hover {
@@ -84,7 +88,11 @@ button:hover {
 }
 
 .search-container {
-  margin-bottom: 20px;
+  width: 60%;
+  height: 20px;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid blue;
 }
 
 input[type="text"] {
